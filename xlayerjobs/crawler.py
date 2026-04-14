@@ -56,6 +56,7 @@ STRICT RULES:
    - free: no payment required
    - unknown: cannot determine
 6. endpoint_url: ONLY include if a real working URL is provided (starts with http). Not GitHub repos, not documentation links.
+7. wallet_address: Extract any EVM wallet address (0x... 42 chars) or Solana address mentioned in the post. This is the service provider's payment address. null if not found.
 
 EXAMPLES of null (NOT a service):
 - "I just ordered a t-shirt using x402" → null (using a service, not offering one)
@@ -70,7 +71,7 @@ EXAMPLES of a service:
 - "Offering free security scans for agent skills" → service
 
 For each post, return null if NOT a service, or:
-{"service_type": "...", "description": "one sentence of what they sell", "price": number_or_null, "currency": "USDT"|"USDC"|"USD"|"NEAR"|null, "payment_method": "...", "endpoint_url": "..."|null}
+{"service_type": "...", "description": "one sentence of what they sell", "price": number_or_null, "currency": "USDT"|"USDC"|"USD"|"NEAR"|null, "payment_method": "...", "endpoint_url": "..."|null, "wallet_address": "0x..."|null}
 
 Return a JSON array with exactly one entry per post.
 
@@ -223,6 +224,15 @@ def crawl_and_extract(max_pages_per_submolt: int = 50):
                 if not post:
                     continue
 
+                # Wallet: use Gemma extraction, fallback to regex
+                wallet = extraction.get("wallet_address")
+                if not wallet:
+                    import re
+                    content = post.get("content", "")
+                    addrs = re.findall(r'0x[a-fA-F0-9]{40}', content)
+                    if addrs:
+                        wallet = addrs[0]
+
                 record = {
                     "post_id": post.get("id", ""),
                     "agent_name": post.get("author", {}).get("name", "unknown"),
@@ -234,6 +244,7 @@ def crawl_and_extract(max_pages_per_submolt: int = 50):
                     "currency": extraction.get("currency"),
                     "payment_method": extraction.get("payment_method", "unknown"),
                     "endpoint_url": extraction.get("endpoint_url"),
+                    "wallet_address": wallet,
                     "submolt": submolt,
                     "source_url": f"https://www.moltbook.com/post/{post.get('id', '')}",
                     "raw_content": post.get("content", "")[:1000],
@@ -323,6 +334,14 @@ def search_and_extract():
             if not post:
                 continue
 
+            # Wallet: use Gemma extraction, fallback to regex
+            wallet = extraction.get("wallet_address")
+            if not wallet:
+                import re
+                addrs = re.findall(r'0x[a-fA-F0-9]{40}', post.get("content", ""))
+                if addrs:
+                    wallet = addrs[0]
+
             records.append({
                 "post_id": post.get("id", ""),
                 "agent_name": post.get("author", {}).get("name", "unknown"),
@@ -334,6 +353,7 @@ def search_and_extract():
                 "currency": extraction.get("currency"),
                 "payment_method": extraction.get("payment_method", "unknown"),
                 "endpoint_url": extraction.get("endpoint_url"),
+                "wallet_address": wallet,
                 "submolt": "search",
                 "source_url": f"https://www.moltbook.com/post/{post.get('id', '')}",
                 "raw_content": post.get("content", "")[:1000],

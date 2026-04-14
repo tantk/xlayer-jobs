@@ -52,6 +52,10 @@ def search_services(
         order = "price.asc.nullslast"
     elif sort_by == "newest":
         order = "post_created_at.desc"
+    elif sort_by == "activity":
+        order = "tx_count.desc.nullslast"
+    elif sort_by == "value":
+        order = "total_value_usd.desc.nullslast"
     else:
         order = "price.asc.nullslast"
 
