@@ -44,8 +44,8 @@ def search_services(
         filters.append(f"price=lte.{max_price}")
 
     if query:
-        # Use Supabase text search on description and title
-        filters.append(f"or=(title.ilike.%25{quote(query)}%25,description.ilike.%25{quote(query)}%25,service_type.ilike.%25{quote(query)}%25)")
+        # Use Supabase text search on description, title, service_type, payment_method, and raw_content
+        filters.append(f"or=(title.ilike.%25{quote(query)}%25,description.ilike.%25{quote(query)}%25,service_type.ilike.%25{quote(query)}%25,payment_method.ilike.%25{quote(query)}%25,raw_content.ilike.%25{quote(query)}%25)")
 
     # Sort
     if sort_by == "price":

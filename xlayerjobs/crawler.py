@@ -15,7 +15,12 @@ GOOGLE_AI_KEY = os.environ.get("GOOGLE_AI_KEY", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
 
-SUBMOLTS = ["agents", "agentfinance", "builds"]
+SUBMOLTS = [
+    "agents", "agentfinance", "builds",
+    "agentcommerce", "x402", "jobs", "buildlogs",
+    "builders", "aitools", "crypto", "technology",
+    "infrastructure", "tooling", "buildx",
+]
 POSTS_PER_PAGE = 20
 
 GEMMA_MODEL = "gemma-3-12b-it"
@@ -199,5 +204,108 @@ def crawl_and_extract(max_pages_per_submolt: int = 50):
     return total_posts, total_services
 
 
+def search_and_extract():
+    """Use Moltbook semantic search to find service posts across all submolts."""
+    queries = [
+        "x402 paid API endpoint service",
+        "offering code review service for agents",
+        "paid data analysis API",
+        "agent service for hire available",
+        "built shipped API endpoint pay per request",
+        "web scraping service agents",
+        "security audit service smart contract",
+        "image generation translation service",
+        "trading signals paid service",
+        "offering research service agents",
+    ]
+
+    total_services = 0
+    seen_ids = set()
+
+    for query in queries:
+        print(f"\nSearching: {query}...")
+        url = f"https://www.moltbook.com/api/v1/search?q={urllib.parse.quote(query)}&type=posts&limit=50"
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {MOLTBOOK_API_KEY}",
+        })
+        try:
+            resp = urllib.request.urlopen(req, timeout=30)
+            data = json.loads(resp.read())
+        except Exception as e:
+            print(f"  Search error: {e}")
+            continue
+
+        results = data.get("results", [])
+        # Filter to unseen posts
+        posts = []
+        for r in results:
+            post_id = r.get("id", r.get("post_id", ""))
+            if post_id and post_id not in seen_ids:
+                seen_ids.add(post_id)
+                # Convert search result format to post format
+                posts.append({
+                    "id": post_id,
+                    "author": r.get("author", {}),
+                    "title": r.get("title", "").replace("<mark>", "").replace("</mark>", ""),
+                    "content": r.get("content", "").replace("<mark>", "").replace("</mark>", ""),
+                    "created_at": r.get("created_at"),
+                })
+
+        if not posts:
+            print(f"  No new posts")
+            continue
+
+        print(f"  {len(posts)} new posts found")
+
+        try:
+            extractions = extract_services_with_gemma(posts)
+        except Exception as e:
+            print(f"  Gemma error: {e}")
+            time.sleep(60)
+            continue
+
+        records = []
+        for i, extraction in enumerate(extractions):
+            if extraction is None:
+                continue
+            post = posts[i] if i < len(posts) else None
+            if not post:
+                continue
+
+            records.append({
+                "post_id": post.get("id", ""),
+                "agent_name": post.get("author", {}).get("name", "unknown"),
+                "agent_id": post.get("author", {}).get("id", ""),
+                "title": post.get("title", ""),
+                "service_type": extraction.get("service_type", "other"),
+                "description": extraction.get("description", ""),
+                "price": extraction.get("price"),
+                "currency": extraction.get("currency"),
+                "payment_method": extraction.get("payment_method", "unknown"),
+                "endpoint_url": extraction.get("endpoint_url"),
+                "submolt": "search",
+                "source_url": f"https://www.moltbook.com/post/{post.get('id', '')}",
+                "raw_content": post.get("content", "")[:1000],
+                "post_created_at": post.get("created_at"),
+            })
+
+        if records:
+            try:
+                upsert_services(records)
+                total_services += len(records)
+                print(f"  Stored {len(records)} services")
+            except Exception as e:
+                print(f"  Supabase error: {e}")
+
+        time.sleep(60)  # 1 req/min
+
+    print(f"\nSearch complete. Found {total_services} services.")
+    return total_services
+
+
 if __name__ == "__main__":
-    crawl_and_extract()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "search":
+        search_and_extract()
+    else:
+        crawl_and_extract()
