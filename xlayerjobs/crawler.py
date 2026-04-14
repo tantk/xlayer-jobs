@@ -136,16 +136,34 @@ def extract_services_with_gemma(posts: list[dict]) -> list[dict | None]:
     result = json.loads(resp.read())
 
     # Extract the JSON from Gemma's response
+    # Gemma 4 outputs reasoning then JSON — find the LAST complete JSON array
     text = result["candidates"][0]["content"]["parts"][0]["text"]
+
+    # Try direct parse first
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Try to find JSON array in the response
-        start = text.find("[")
-        end = text.rfind("]") + 1
-        if start >= 0 and end > start:
-            return json.loads(text[start:end])
-        return [None] * len(posts)
+        pass
+
+    # Find all JSON arrays in the text, take the last one (most likely the final answer)
+    import re
+    arrays = re.findall(r'\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])*\]', text)
+    for candidate in reversed(arrays):
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, list) and len(parsed) == len(posts):
+                return parsed
+        except json.JSONDecodeError:
+            continue
+
+    # Last resort: find any JSON array
+    for candidate in reversed(arrays):
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+    return [None] * len(posts)
 
 
 def upsert_services(services: list[dict]):
