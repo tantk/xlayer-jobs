@@ -193,7 +193,7 @@ def crawl_and_extract(max_pages_per_submolt: int = 50):
                 except Exception as e:
                     print(f"  Supabase error: {e}")
 
-            time.sleep(1)  # rate limit between batches
+            time.sleep(5)  # Gemma free tier: 15 req/min → 1 batch every 4s + margin
 
     print(f"\nDone. Processed {total_posts} posts, found {total_services} services.")
     return total_posts, total_services
