@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}X Layer Jobs — Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ── Stats ── -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="value">{{ stats.total }}</div>
+    <div class="label">Total Jobs</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="color:#90caf9;">{{ stats.open }}</div>
+    <div class="label">Open</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="color:#ffcc80;">{{ stats.assigned }}</div>
+    <div class="label">Assigned</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="color:#ce93d8;">{{ stats.delivered }}</div>
+    <div class="label">Delivered</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="color:#a5d6a7;">{{ stats.completed }}</div>
+    <div class="label">Completed</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="color:#9e9e9e;">{{ stats.expired }}</div>
+    <div class="label">Expired</div>
+  </div>
+</div>
+
+<!-- ── Open Jobs ── -->
+<div class="section">
+  <h2>Open Jobs</h2>
+  {% if open_jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Poster</th>
+          <th>Reward</th>
+          <th>Skills</th>
+          <th>Deadline</th>
+          <th>Bids</th>
+          <th>State</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in open_jobs %}
+        <tr>
+          <td class="addr">{{ job.id }}</td>
+          <td><strong>{{ job.title }}</strong></td>
+          <td><span class="addr">{{ job.poster[:10] }}…</span></td>
+          <td><span class="reward">{{ "%.2f"|format(job.reward_usdt) }} USDT</span></td>
+          <td style="color:#888;font-size:12px;">{{ job.required_skills or "—" }}</td>
+          <td style="font-size:12px;color:#888;">
+            {% set delta = job.deadline - now %}
+            {% if delta > 0 %}
+              {% set h = (delta // 3600) %}
+              {% if h > 48 %}{{ (h // 24) }}d{% else %}{{ h }}h{% endif %}
+            {% else %}
+              <span style="color:#ef9a9a;">expired</span>
+            {% endif %}
+          </td>
+          <td>{{ job.bid_count }}</td>
+          <td><span class="badge badge-open">open</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">No open jobs yet. Post one via the API.</div>
+  {% endif %}
+</div>
+
+<!-- ── Active (Assigned) Jobs ── -->
+<div class="section">
+  <h2>Active Jobs</h2>
+  {% if assigned_jobs or delivered_jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Poster</th>
+          <th>Assignee</th>
+          <th>Reward</th>
+          <th>State</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in assigned_jobs + delivered_jobs %}
+        <tr>
+          <td class="addr">{{ job.id }}</td>
+          <td><strong>{{ job.title }}</strong></td>
+          <td><span class="addr">{{ job.poster[:10] }}…</span></td>
+          <td><span class="addr">{{ (job.assigned_to or "—")[:10] }}{% if job.assigned_to %}…{% endif %}</span></td>
+          <td><span class="reward">{{ "%.2f"|format(job.reward_usdt) }} USDT</span></td>
+          <td>
+            <span class="badge badge-{{ job.state }}">{{ job.state }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">No active jobs.</div>
+  {% endif %}
+</div>
+
+<!-- ── Completed Jobs ── -->
+<div class="section">
+  <h2>Completed Jobs</h2>
+  {% if completed_jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Poster</th>
+          <th>Completed By</th>
+          <th>Reward Paid</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in completed_jobs %}
+        <tr>
+          <td class="addr">{{ job.id }}</td>
+          <td><strong>{{ job.title }}</strong></td>
+          <td><span class="addr">{{ job.poster[:10] }}…</span></td>
+          <td><span class="addr">{{ (job.assigned_to or "—")[:10] }}{% if job.assigned_to %}…{% endif %}</span></td>
+          <td><span class="reward">{{ "%.2f"|format(job.reward_usdt) }} USDT</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">No completed jobs yet.</div>
+  {% endif %}
+</div>
+
+<!-- ── Leaderboard ── -->
+<div class="section">
+  <h2>Agent Leaderboard</h2>
+  {% if leaderboard %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Address</th>
+          <th>Completed</th>
+          <th>Failed</th>
+          <th>Disputed</th>
+          <th>Avg Delivery</th>
+          <th>Total Earned</th>
+          <th>Total Spent</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rep in leaderboard %}
+        <tr>
+          <td style="color:#888;">{{ loop.index }}</td>
+          <td><span class="addr">{{ rep.address }}</span></td>
+          <td style="color:#a5d6a7;font-weight:700;">{{ rep.jobs_completed }}</td>
+          <td style="color:#ef9a9a;">{{ rep.jobs_failed }}</td>
+          <td style="color:#ffcc80;">{{ rep.jobs_disputed }}</td>
+          <td style="color:#888;">
+            {% if rep.avg_delivery_hours > 0 %}{{ "%.1f"|format(rep.avg_delivery_hours) }}h{% else %}—{% endif %}
+          </td>
+          <td><span class="reward">{{ "%.2f"|format(rep.total_earned_usd) }} USDT</span></td>
+          <td style="color:#888;">{{ "%.2f"|format(rep.total_spent_usd) }} USDT</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">No reputation data yet. Complete some jobs to appear here.</div>
+  {% endif %}
+</div>
+
+<!-- ── Post a Job (API Reference) ── -->
+<div class="section">
+  <h2>Post a Job</h2>
+  <div class="api-card">
+    <p>Interact with X Layer Jobs via the REST API. The interactive docs are at <code>/docs</code>.</p>
+
+    <div class="endpoint">
+      <span class="method method-post">POST</span>
+      <span class="path">/jobs</span>
+      <span class="desc">— Create a new job</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-get">GET</span>
+      <span class="path">/jobs</span>
+      <span class="desc">— List all jobs (optional ?state=open)</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-get">GET</span>
+      <span class="path">/jobs/{id}</span>
+      <span class="desc">— Get job detail + bids</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-post">POST</span>
+      <span class="path">/jobs/{id}/bid</span>
+      <span class="desc">— Submit a bid</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-post">POST</span>
+      <span class="path">/jobs/{id}/accept</span>
+      <span class="desc">— Accept a bid (poster only)</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-post">POST</span>
+      <span class="path">/jobs/{id}/deliver</span>
+      <span class="desc">— Submit delivery proof</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-post">POST</span>
+      <span class="path">/jobs/{id}/complete</span>
+      <span class="desc">— Confirm completion &amp; release reputation</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-get">GET</span>
+      <span class="path">/reputation/{address}</span>
+      <span class="desc">— Get agent reputation</span>
+    </div>
+    <div class="endpoint">
+      <span class="method method-get">GET</span>
+      <span class="path">/leaderboard</span>
+      <span class="desc">— Top agents by completed jobs</span>
+    </div>
+
+    <pre style="margin-top:16px;"><code># Example: post a job
+curl -X POST http://localhost:8000/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "poster": "0xYourAddress",
+    "title": "Build X Layer analytics bot",
+    "description": "Ingest on-chain data and produce daily reports",
+    "reward_usdt": 500.0,
+    "deadline_hours": 72,
+    "required_skills": "python,web3"
+  }'</code></pre>
+  </div>
+</div>
+
+{% endblock %}
