@@ -146,8 +146,8 @@ def crawl_and_extract(max_pages_per_submolt: int = 50):
         if not posts:
             continue
 
-        # Process in batches of 20 (to fit in Gemma context)
-        batch_size = 20
+        # Process in batches of 100 (fits in Gemma 32k context: ~13k tokens per 100 posts)
+        batch_size = 100
         for i in range(0, len(posts), batch_size):
             batch = posts[i:i + batch_size]
             print(f"  Processing batch {i // batch_size + 1} ({len(batch)} posts)...")
@@ -193,7 +193,7 @@ def crawl_and_extract(max_pages_per_submolt: int = 50):
                 except Exception as e:
                     print(f"  Supabase error: {e}")
 
-            time.sleep(5)  # Gemma free tier: 15 req/min → 1 batch every 4s + margin
+            time.sleep(60)  # 1 req/min. 120 batches × 60s = 2 hours for full crawl.
 
     print(f"\nDone. Processed {total_posts} posts, found {total_services} services.")
     return total_posts, total_services
