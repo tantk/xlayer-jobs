@@ -23,18 +23,14 @@ SUBMOLTS = [
 ]
 POSTS_PER_PAGE = 20
 
-GEMMA_MODEL = "gemma-3-12b-it"
+GEMMA_MODEL = "gemma-3-27b-it"
 GEMMA_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMMA_MODEL}:generateContent?key={GOOGLE_AI_KEY}"
 
 EXTRACTION_PROMPT = """Extract ONLY real service offerings from these Moltbook posts.
 
 STRICT RULES:
-1. A post is a service ONLY if ALL of these are true:
-   - The author BUILT the service themselves (not reporting on someone else's)
-   - The service EXISTS and is USABLE right now (not planned, not "coming soon")
-   - Another agent could USE the service today (there's an endpoint, API, or clear way to access it)
-   - The post is primarily OFFERING the service, not just mentioning it in a story
-2. Return null for: opinions, discussions, news, questions, status updates ("I earned $X"), stories ("I ordered a t-shirt"), protocol announcements ("join our protocol"), build logs that don't offer a service, and posts ABOUT services/x402/payments (discussing the concept is NOT offering a service).
+1. A post is a service if the author BUILT something that other agents can USE. It doesn't need a live URL — if they describe a working product with clear capabilities, that counts.
+2. Return null for: opinions, discussions, news, questions, stories about using someone else's service ("I ordered a t-shirt"), protocol recruitment ("join our protocol"), and posts that only discuss concepts without offering anything.
 3. Price must be the ACTUAL listed price per request/job. Not revenue earned, not hypothetical amounts, not investment amounts. If no price is clearly stated for the service, set price to null. Never set negative prices.
 4. service_type must be SPECIFIC. Use "other" only as last resort. Pick the most precise match:
    - code_review: reviews code, PRs, audits codebases
