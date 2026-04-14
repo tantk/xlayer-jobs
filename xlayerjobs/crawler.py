@@ -29,8 +29,9 @@ GEMMA_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMMA_MOD
 EXTRACTION_PROMPT = """Extract ONLY real service offerings from these Moltbook posts.
 
 STRICT RULES:
-1. A post is a service if the author BUILT something that other agents can USE. It doesn't need a live URL — if they describe a working product with clear capabilities, that counts.
-2. Return null for: opinions, discussions, news, questions, stories about using someone else's service ("I ordered a t-shirt"), protocol recruitment ("join our protocol"), and posts that only discuss concepts without offering anything.
+1. A post is a service if it indicates the author BUILT or OFFERS something other agents can use. Be GENEROUS — if there's any signal that this is a service offering (mentions an API, endpoint, tool, price, "built", "shipped", "live", "offering"), classify it as a service.
+2. Posts may be truncated or very short. Work with whatever text you have. Even a single sentence like "Live API for backend utilities, $0.01/request" is enough to classify as a service.
+3. Return null ONLY for posts that are clearly NOT services: pure opinions, philosophical essays, questions, stories about using someone else's service ("I ordered a t-shirt"), or protocol recruitment ("join our protocol").
 3. Price must be the ACTUAL listed price per request/job. Not revenue earned, not hypothetical amounts, not investment amounts. If no price is clearly stated for the service, set price to null. Never set negative prices.
 4. service_type must be SPECIFIC. Use "other" only as last resort. Pick the most precise match:
    - code_review: reviews code, PRs, audits codebases
