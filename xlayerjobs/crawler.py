@@ -26,20 +26,56 @@ POSTS_PER_PAGE = 20
 GEMMA_MODEL = "gemma-3-12b-it"
 GEMMA_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMMA_MODEL}:generateContent?key={GOOGLE_AI_KEY}"
 
-EXTRACTION_PROMPT = """You are extracting structured service listings from Moltbook posts.
-Each post is from an AI agent. Some posts offer services, some don't.
+EXTRACTION_PROMPT = """Extract ONLY real service offerings from these Moltbook posts.
 
-For each post, determine if it's offering a service. If yes, extract:
-- service_type: one of [code_review, data_analysis, research, image_generation, translation, web_scraping, security_audit, smart_contract, trading_signals, general_ai, other]
-- description: one sentence summary of what they offer
-- price: numeric price per request/job (null if not stated)
-- currency: USDT, USDC, USD, NEAR, credits, or null
-- payment_method: one of [x402, dm, api, escrow, platform, unknown]
-- endpoint_url: API URL if provided, null otherwise
+STRICT RULES:
+1. A post is a service ONLY if ALL of these are true:
+   - The author BUILT the service themselves (not reporting on someone else's)
+   - The service EXISTS and is USABLE right now (not planned, not "coming soon")
+   - Another agent could USE the service today (there's an endpoint, API, or clear way to access it)
+   - The post is primarily OFFERING the service, not just mentioning it in a story
+2. Return null for: opinions, discussions, news, questions, status updates ("I earned $X"), stories ("I ordered a t-shirt"), protocol announcements ("join our protocol"), build logs that don't offer a service, and posts ABOUT services/x402/payments (discussing the concept is NOT offering a service).
+3. Price must be the ACTUAL listed price per request/job. Not revenue earned, not hypothetical amounts, not investment amounts. If no price is clearly stated for the service, set price to null. Never set negative prices.
+4. service_type must be SPECIFIC. Use "other" only as last resort. Pick the most precise match:
+   - code_review: reviews code, PRs, audits codebases
+   - data_analysis: analyzes data, provides analytics, on-chain analysis
+   - research: researches topics, gathers information, writes reports
+   - image_generation: generates images, videos, visual content
+   - translation: translates text between languages
+   - web_scraping: scrapes websites, extracts web data
+   - security_audit: audits smart contracts, scans for vulnerabilities
+   - smart_contract: deploys/builds/manages smart contracts
+   - trading_signals: provides trading signals, market analysis, price alerts
+   - memory_storage: stores/retrieves agent memory or data
+   - payment_service: facilitates payments, invoicing, financial operations
+   - automation: automates workflows, tasks, processes
+   - api_gateway: provides access to external APIs/data sources
+5. payment_method: how the buyer actually pays
+   - x402: HTTP 402 payment protocol (agent sends request, gets 402, pays crypto, gets response)
+   - api_key: traditional API key access (may involve payment separately)
+   - dm: contact via DM to arrange payment
+   - platform: pay through a specific platform (NEAR Market, ClawGig, etc)
+   - crypto_direct: send crypto to an address
+   - free: no payment required
+   - unknown: cannot determine
+6. endpoint_url: ONLY include if a real working URL is provided (starts with http). Not GitHub repos, not documentation links.
 
-If the post is NOT offering a service (it's a discussion, opinion, question), return null for that post.
+EXAMPLES of null (NOT a service):
+- "I just ordered a t-shirt using x402" → null (using a service, not offering one)
+- "x402 is the future of agent payments" → null (opinion)
+- "I earned $500 this week from my API" → null (status update)
+- "Join our protocol for on-chain income" → null (recruitment, not a service)
+- "Here's what I learned building an x402 service" → null (story/lesson)
 
-Return a JSON array with one entry per post. Each entry is either null (not a service) or an object with the fields above.
+EXAMPLES of a service:
+- "POST /api/review — send code, get review back. $0.10 per request" → service
+- "My scraping API is live at https://... — $0.05/page" → service
+- "Offering free security scans for agent skills" → service
+
+For each post, return null if NOT a service, or:
+{"service_type": "...", "description": "one sentence of what they sell", "price": number_or_null, "currency": "USDT"|"USDC"|"USD"|"NEAR"|null, "payment_method": "...", "endpoint_url": "..."|null}
+
+Return a JSON array with exactly one entry per post.
 
 Posts:
 """
