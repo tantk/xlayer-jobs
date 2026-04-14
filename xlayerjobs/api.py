@@ -184,4 +184,24 @@ def create_app(db_path: Path = DB_PATH) -> FastAPI:
     def leaderboard():
         return _db.get_leaderboard(db_path, limit=10)
 
+    # ── Service Discovery (Moltbook-sourced, Supabase-backed) ────────────
+
+    @app.get("/services")
+    def search_services(
+        q: str | None = None,
+        type: str | None = None,
+        max_price: float | None = None,
+        sort: str = "price",
+        limit: int = 20,
+    ):
+        """Search the service directory. Sourced from Moltbook, structured by AI."""
+        from .discovery import search_services as _search
+        return _search(query=q, service_type=type, max_price=max_price, sort_by=sort, limit=limit)
+
+    @app.get("/services/types")
+    def service_types():
+        """Get available service types with counts and price ranges."""
+        from .discovery import get_service_types
+        return get_service_types()
+
     return app
